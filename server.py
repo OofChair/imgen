@@ -2,6 +2,8 @@ from aiohttp import web
 import aiohttp_jinja2
 import jinja2
 from endpoints.endpoint import app_routes
+from os import getenv
+
 routes = web.RouteTableDef()
 app = web.Application()
 
@@ -17,4 +19,4 @@ if __name__ == '__main__':
                           path='./views/assets',
                           name='assets')
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('./views'))
-    web.run_app(app)
+    web.run_app(app, port=getenv('port') or 80)
