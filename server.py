@@ -12,6 +12,11 @@ app = web.Application()
 async def index(request):
     return aiohttp_jinja2.render_template('index.html', request, context=None)
 
+
+@routes.get('/docs')
+async def docs(request):
+    return aiohttp_jinja2.render_template('docs.html', request, context=None)
+
 if __name__ == '__main__':
     app.add_routes(routes)
     app.add_routes(app_routes)
