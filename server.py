@@ -1,173 +1,324 @@
-import asyncio
+from PIL import Image, ImageFont, ImageDraw
+from io import BytesIO
+from aiohttp import web
+from utils.textutils import render_text_with_emoji, wrap, auto_text_size
+from endpoints.tools import getavatar, get, getarg
 
-try:
-    import ujson as json
-except ImportError:
-    import json
-
-import os
-import threading
-import traceback
-
-import rethinkdb as r
-from flask import Flask, render_template, request, g, jsonify, make_response
-
-from dashboard import dash
-from utils.db import get_db, get_redis
-from utils.ratelimits import ratelimit, endpoint_ratelimit
-from utils.exceptions import BadRequest
-
-from sentry_sdk import capture_exception
-
-# Initial require, the above line contains our endpoints.
-
-config = json.load(open('config.json'))
-endpoints = None
-
-app = Flask(__name__, template_folder='views', static_folder='views/assets')
-app.register_blueprint(dash)
-
-app.config['SECRET_KEY'] = config['client_secret']
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
-
-if 'sentry_dsn' in config:
-    import sentry_sdk
-    from sentry_sdk.integrations.flask import FlaskIntegration
-
-    sentry_sdk.init(config['sentry_dsn'],
-                    integrations=[FlaskIntegration()])
+app_routes = web.RouteTableDef()
 
 
-@app.before_first_request
-def init_app():
-    def run_gc_forever(loop):
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_forever()
-        except (SystemExit, KeyboardInterrupt):
-            loop.close()
-
-    gc_loop = asyncio.new_event_loop()
-    gc_thread = threading.Thread(target=run_gc_forever, args=(gc_loop,))
-    gc_thread.start()
-    g.gc_loop = gc_loop
-
-    from utils.endpoint import endpoints as endpnts
-    global endpoints
-    endpoints = endpnts
-    import endpoints as _  # noqa: F401
+@app_routes.get('/abandon')
+async def abandon(request):
+    args = await getarg(request)
+    text = args[2][0]
+    base = Image.open('assets/abandon/abandon.bmp')
+    font = ImageFont.truetype('assets/fonts/verdana.ttf', 24)
+    canv = ImageDraw.Draw(base)
+    render_text_with_emoji(base, canv, (25, 413), wrap(font, text, 320), font, 'black')
+    base = base.convert('RGB')
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
 
 
-def require_authorization(func):
-    def wrapper(*args, **kwargs):
-        if r.table('keys').get(request.headers.get('authorization', '')).coerce_to('bool').default(False).run(get_db()):
-            return func(*args, **kwargs)
+@app_routes.get('/airpods')
+async def airpods(request):
+    blank = Image.new('RGBA', (400, 128), (255, 255, 255, 0))
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0]
+    left = Image.open('assets/airpods/left.gif')
+    right = Image.open('assets/airpods/right.gif')
+    out = []
+    for i in range(0, left.n_frames):
+        left.seek(i)
+        right.seek(i)
+        f = blank.copy().convert('RGBA')
+        l = left.copy().convert('RGBA')
+        r = right.copy().convert('RGBA')
+        f.paste(l, (0, 0), l)
+        f.paste(avatar, (136, 0), avatar)
+        f.paste(r, (272, 0), r)
+        out.append(f.resize((400, 128), Image.LANCZOS).convert('RGBA'))
 
-        return jsonify({'status': 401, 'error': 'You are not authorized to access this endpoint'}), 401
-
-    return wrapper
-
-
-@app.teardown_appcontext
-def close_db(error):
-    """Closes the database again at the end of the request."""
-    if hasattr(g, 'rdb'):
-        g.rdb.close()
-
-
-@app.route('/')
-def index():
-    return render_template('index.html', active_home="nav-active")
-
-
-@app.route('/stats', methods=['GET'])
-def stats():
-    data = {}
-
-    for endpoint in endpoints:
-        data[endpoint] = {'hits': get_redis().get(endpoint + ':hits') or 0,
-                          'avg_gen_time': endpoints[endpoint].get_avg_gen_time()}
-
-    return render_template('stats.html', data=data, active_stats="nav-active")
+    b = BytesIO()
+    out[0].save(b, format='gif', save_all=True, append_images=out[1:], loop=0, disposal=2, optimize=True,
+                duration=30, transparency=0)
+    b.seek(0)
+    with open('temp.gif', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.gif')
 
 
-@app.route('/endpoints.json', methods=['GET'])
-def endpoints():
-    return jsonify({"endpoints": [{'name': x, 'parameters': y.params, 'ratelimit': f'{y.rate}/{y.per}s'} for x, y in endpoints.items()]})
+@app_routes.get('/america')
+async def america(request):
+    args = await getarg(request)
+    av = await getavatar(array=args[0])
+    img1 = av[0].convert('RGBA').resize((480, 480))
+    img2 = Image.open('assets/america/america.gif')
+    img1.putalpha(128)
+    out = []
+    for i in range(0, img2.n_frames):
+        img2.seek(i)
+        f = img2.copy().convert('RGBA').resize((480, 480))
+        f.paste(img1, (0, 0), img1)
+        out.append(f.resize((256, 256)))
+
+    b = BytesIO()
+    out[0].save(b, format='gif', save_all=True, append_images=out[1:], loop=0, disposal=2, optimize=True, duration=30)
+    b.seek(0)
+    with open('temp.gif', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.gif')
 
 
-@app.route('/documentation')
-def docs():
-    return render_template('docs.html', url=request.host_url, data=sorted(endpoints.items()), active_docs="nav-active")
+@app_routes.get('/aborted')
+async def aborted(request):
+    base = Image.open('assets/aborted/aborted.bmp')
+    args = await getarg(request)
+    av = await getavatar(array=args[0])
+    img1 = av[0].convert('RGBA').resize((90, 90))
+    base.paste(img1, (390, 130), img1)
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
 
 
-@app.route('/api/<endpoint>', methods=['GET', 'POST'])
-@require_authorization
-@ratelimit
-def api(endpoint):
-    if endpoint not in endpoints:
-        return jsonify({'status': 404, 'error': 'Endpoint {} not found!'.format(endpoint)}), 404
-    if request.method == 'GET':
-        text = request.args.get('text', '')
-        avatars = [x for x in [request.args.get('avatar1', request.args.get('image', None)),
-                               request.args.get('avatar2', None)] if x]
-        usernames = [x for x in [request.args.get('username1', None), request.args.get('username2', None)] if x]
-        kwargs = {}
-        for arg in request.args:
-            if arg not in ['text', 'username1', 'username2', 'avatar1', 'avatar2']:
-                kwargs[arg] = request.args.get(arg)
+@app_routes.get('/affect')
+async def affect(request):
+    args = await getarg(request)
+    av = await getavatar(array=args[0])
+    avatar = av[0].resize((200, 157)).convert('RGBA')
+    base = Image.open('assets/affect/affect.bmp').convert('RGBA')
+
+    base.paste(avatar, (180, 383, 380, 540), avatar)
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/armor')
+async def armor(request):
+    base = Image.open('assets/armor/armor.bmp').convert('RGBA')
+    args = await getarg(request)
+    text = args[2][0]
+    font = ImageFont.truetype('assets/fonts/sans.ttf')
+    font, text = auto_text_size(text, font, 207,
+                                font_scalar=0.8)
+    canv = ImageDraw.Draw(base)
+
+    render_text_with_emoji(base, canv, (34, 371), text, font=font, fill='Black')
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/balloon')
+async def balloon(request):
+    args = await getarg(request)
+    text = args[2]
+    base = Image.open('assets/balloon/balloon.bmp').convert('RGBA')
+    font = ImageFont.truetype('assets/fonts/sans.ttf')
+    canv = ImageDraw.Draw(base)
+    print(text)
+    if len(text) != 2:
+        text = ["Separate the items with a", "comma followed by a space"]
+
+    balloon, label = text
+
+    balloon_text_1_font, balloon_text_1 = auto_text_size(balloon, font, 162)
+    balloon_text_2_font, balloon_text_2 = auto_text_size(balloon, font, 170, font_scalar=0.95)
+    balloon_text_3_font, balloon_text_3 = auto_text_size(balloon, font, 110, font_scalar=0.8)
+    label_font, label_text = auto_text_size(label, font, 125)
+
+    render_text_with_emoji(base, canv, (80, 180), balloon_text_1, font=balloon_text_1_font, fill='Black')
+    render_text_with_emoji(base, canv, (50, 530), balloon_text_2, font=balloon_text_2_font, fill='Black')
+    render_text_with_emoji(base, canv, (500, 520), balloon_text_3, font=balloon_text_3_font, fill='Black')
+    render_text_with_emoji(base, canv, (620, 155), label_text, font=label_font, fill='Black')
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/bed')
+async def bed(request):
+    args = await getarg(request)
+    av = await getavatar(array=args[0])
+    avatar = av[0].resize((100, 100)).convert('RGBA')
+    avatar2 = av[1].resize((100, 100)).convert('RGBA')
+    base = Image.open('assets/bed/bed.bmp').convert('RGBA')
+    avatar_small = avatar.copy().resize((70, 70))
+    base.paste(avatar, (25, 100), avatar)
+    base.paste(avatar, (25, 300), avatar)
+    base.paste(avatar_small, (53, 450), avatar_small)
+    base.paste(avatar2, (53, 575), avatar2)
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes.get('/bongocat')
+async def bongocat(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    base = Image.open('assets/bongocat/bongocat.bmp').convert('RGBA')
+    avatar = avatar[0].resize((750, 750)).convert('RGBA')
+
+    avatar.paste(base, (0, 0), base)
+    avatar = avatar.convert('RGBA')
+
+    b = BytesIO()
+    avatar.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+"""
+@app_routes.get('/boo')
+async def boo(request):
+    base = Image.open(self.assets.get('assets/boo/boo.bmp')).convert('RGBA')
+    # We need a text layer here for the rotation
+    canv = ImageDraw.Draw(base)
+
+    text = text.split(', ')
+
+    if len(text) != 2:
+        text = ["Separate the items with a", "comma followed by a space"]
+
+    first, second = text
+
+    first_font, first_text = auto_text_size(first,
+                                            self.assets.get_font('assets/fonts/sans.ttf'), 144,
+                                            font_scalar=0.7)
+    second_font, second_text = auto_text_size(second,
+                                              self.assets.get_font('assets/fonts/sans.ttf'),
+                                              144,
+                                              font_scalar=0.7)
+
+    canv.text((35, 54), first_text, font=first_font, fill='Black')
+    canv.text((267, 57), second_text, font=second_font, fill='Black')
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+
+"""
+@app_routes.get('/brain')
+async def brain(request):
+    base = Image.open('assets/brain/brain.bmp')
+    font = ImageFont.truetype('assets/fonts/verdana.ttf', size=30)
+    args = await getarg(request)
+    text = args[2]
+    if len(text) < 4:
+        a, b, c, d = 'you need, four items, for this, command (split by commas)'.split(',')
     else:
-        if not request.is_json:
-            return jsonify({'status': 400, 'message': 'when submitting a POST request you must provide data in the '
-                                                      'JSON format'}), 400
-        request_data = request.json
-        text = request_data.get('text', '')
-        avatars = list(request_data.get('avatars', list(request_data.get('images', []))))
-        usernames = list(request_data.get('usernames', []))
-        kwargs = {}
-        for arg in request_data:
-            if arg not in ['text', 'avatars', 'usernames']:
-                kwargs[arg] = request_data.get(arg)
-    cache = endpoints[endpoint].bucket
-    max_usage = endpoints[endpoint].rate
-    e_r = endpoint_ratelimit(auth=request.headers.get('Authorization', None), cache=cache, max_usage=max_usage)
-    if e_r['X-RateLimit-Remaining'] == -1:
-        x = make_response((jsonify({'status': 429, 'error': 'You are being ratelimited'}), 429,
-                          {'X-RateLimit-Limit': e_r['X-RateLimit-Limit'],
-                           'X-RateLimit-Remaining': 0,
-                           'X-RateLimit-Reset': e_r['X-RateLimit-Reset'],
-                           'Retry-After': e_r['Retry-After']}))
-        return x
-    if endpoint == 'profile':
-        if request.headers.get('Authorization', None) != config.get('memer_token', None):
-            return jsonify({"error": 'This endpoint is limited to Dank Memer', 'status': 403}), 403
-    try:
-        result = endpoints[endpoint].run(key=request.headers.get('authorization'),
-                                         text=text,
-                                         avatars=avatars,
-                                         usernames=usernames,
-                                         kwargs=kwargs)
-    except BadRequest as br:
-        traceback.print_exc()
-        if 'sentry_dsn' in config:
-            capture_exception(br)
-        return jsonify({'status': 400, 'error': str(br)}), 400
-    except IndexError as e:
-        traceback.print_exc()
-        if 'sentry_dsn' in config:
-            capture_exception(e)
-        return jsonify({'status': 400, 'error': str(e) + '. Are you missing a parameter?'}), 400
-    except Exception as e:
-        traceback.print_exc()
-        if 'sentry_dsn' in config:
-            capture_exception(e)
-        return jsonify({'status': 500, 'error': str(e)}), 500
+        a, b, c, d = text[:4]
 
-    result.headers.add('X-RateLimit-Limit', max_usage)
-    result.headers.add('X-RateLimit-Remaining', e_r['X-RateLimit-Remaining'])
-    result.headers.add('X-RateLimit-Reset', e_r['X-RateLimit-Reset'])
-    return result, 200
+    a, b, c, d = [wrap(font, i, 225).strip() for i in [a, b, c, d]]
+
+    canvas = ImageDraw.Draw(base)
+    canvas.text((15, 40), a, font=font, fill='Black')
+    canvas.text((15, 230), b, font=font, fill='Black')
+    canvas.text((15, 420), c, font=font, fill='Black')
+    canvas.text((15, 610), d, font=font, fill='Black')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
 
 
-if __name__ == '__main__':
-    app.run(debug=False, use_reloader=False)
+@app_routes.get('/brazzers')
+async def brazzers(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0]
+    base = Image.open('assets/brazzers/brazzers.bmp')
+    aspect = avatar.width / avatar.height
+
+    new_height = int(base.height * aspect)
+    new_width = int(base.width * aspect)
+    scale = new_width / avatar.width
+    size = (int(new_width / scale / 2), int(new_height / scale / 2))
+
+    base = base.resize(size).convert('RGBA')
+    avatar.paste(base, (avatar.width - base.width,
+                        avatar.height - base.height), base)
+    avatar = avatar.convert('RGBA')
+
+    b = BytesIO()
+    avatar.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes.get('/byemom')
+async def byemom(request):
+    base = Image.open('assets/byemom/mom.bmp')
+    args = await getarg(request)
+    print(args)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0].convert('RGBA').resize((70, 70), resample=Image.BICUBIC)
+    avatar2 = avatar.copy().resize((125, 125), resample=Image.BICUBIC)
+    text_layer = Image.new('RGBA', (350, 25))
+    bye_layer = Image.new('RGBA', (180, 51), (255, 255, 255))
+    font = ImageFont.truetype('assets/fonts/arial.ttf', size=20)
+    bye_font = ImageFont.truetype('assets/fonts/arimobold.ttf', size=14)
+    canv = ImageDraw.Draw(text_layer)
+    bye = ImageDraw.Draw(bye_layer)
+    username = args[1][0] or 'Tommy'
+    msg = 'Alright {} im leaving the house to run some errands'.format(username)
+    text = args[2][0]
+    text = wrap(font, text, 500)
+    msg = wrap(font, msg, 200)
+
+    render_text_with_emoji(text_layer, canv, (0, 0), text, font=font, fill='Black')
+    render_text_with_emoji(bye_layer, bye, (0, 0), msg, font=bye_font, fill=(42, 40, 165))
+    text_layer = text_layer.rotate(24.75, resample=Image.BICUBIC, expand=True)
+
+    base.paste(text_layer, (350, 443), text_layer)
+    base.paste(bye_layer, (150, 7))
+    base.paste(avatar, (530, 15), avatar)
+    base.paste(avatar2, (70, 340), avatar2)
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
