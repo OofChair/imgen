@@ -1,0 +1,1 @@
+[![Build status](https://travis-ci.org/blacksmithop/imgen.svg?master)](https://travis-ci.org/blacksmithop)
