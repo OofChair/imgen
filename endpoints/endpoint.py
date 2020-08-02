@@ -2,7 +2,7 @@ from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
 from aiohttp import web
 from utils.textutils import render_text_with_emoji, wrap, auto_text_size
-from endpoints.tools import getavatar, get, getarg
+from endpoints.tools import getavatar, getarg
 
 app_routes = web.RouteTableDef()
 
