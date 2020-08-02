@@ -202,37 +202,7 @@ async def bongocat(request):
         e.write(b.getvalue())
     return web.FileResponse(path='./temp.png')
 
-"""
-@app_routes.get('/boo')
-async def boo(request):
-    base = Image.open(self.assets.get('assets/boo/boo.bmp')).convert('RGBA')
-    # We need a text layer here for the rotation
-    canv = ImageDraw.Draw(base)
 
-    text = text.split(', ')
-
-    if len(text) != 2:
-        text = ["Separate the items with a", "comma followed by a space"]
-
-    first, second = text
-
-    first_font, first_text = auto_text_size(first,
-                                            self.assets.get_font('assets/fonts/sans.ttf'), 144,
-                                            font_scalar=0.7)
-    second_font, second_text = auto_text_size(second,
-                                              self.assets.get_font('assets/fonts/sans.ttf'),
-                                              144,
-                                              font_scalar=0.7)
-
-    canv.text((35, 54), first_text, font=first_font, fill='Black')
-    canv.text((267, 57), second_text, font=second_font, fill='Black')
-    base = base.convert('RGB')
-
-    b = BytesIO()
-    base.save(b, format='jpeg')
-    b.seek(0)
-
-"""
 @app_routes.get('/brain')
 async def brain(request):
     base = Image.open('assets/brain/brain.bmp')
