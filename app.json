@@ -1,0 +1,7 @@
+{
+  "name": "Imgen",
+  "description": "A Python Image manipulation API server running on aiohttp",
+  "repository": "https://github.com/blacksmithop/imgen",
+  "logo": "https://i.ibb.co/qDTYjgj/ambu.png",
+  "keywords": ["Python3", "PIL", "aiohttp"]
+}
