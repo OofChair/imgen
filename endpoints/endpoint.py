@@ -2,7 +2,9 @@ from PIL import Image, ImageFont, ImageDraw
 from io import BytesIO
 from aiohttp import web
 from utils.textutils import render_text_with_emoji, wrap, auto_text_size
+from utils.skew import skew
 from endpoints.tools import getavatar, getarg
+
 
 app_routes = web.RouteTableDef()
 
@@ -394,3 +396,108 @@ async def cheating(request):
     with open('temp.jpeg', 'wb') as e:
         e.write(b.getvalue())
     return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/citation')
+async def citation(request):
+    text = request.headers.get('text')
+    text = text.replace(', ', ',').split(',')
+    if len(text) != 3:
+        text = ['M.O.A. CITATION', 'You must have 3 arguments split by comma', 'PENALTY ASSESSED - WRONG IMAGE']
+    base = Image.open('assets/citation/citation.bmp')
+    font = ImageFont.truetype('assets/fonts/bmmini.ttf', size=16)
+    canv = ImageDraw.Draw(base)
+    text_0 = wrap(font, text[0], 320)
+    text_1 = wrap(font, text[1], 320)
+    canv.text((20, 10), text_0, font=font)
+    canv.text((20, 45), text_1, font=font)
+    size = canv.textsize(text[2], font=font)
+    new_width = (base.width - size[0]) / 2
+    canv.text((new_width, 130), text[2], font=font, align='center')
+    base = base.convert('RGB')
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/communism')
+async def communism(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    img1 = avatar[0].convert('RGBA').resize((300, 300))
+    img2 = Image.open('assets/communism/communism.gif')
+    img1.putalpha(96)
+
+    out = []
+    for i in range(0, img2.n_frames):
+        img2.seek(i)
+        f = img2.copy().convert('RGBA').resize((300, 300))
+        f.paste(img1, (0, 0), img1)
+        out.append(f.resize((256, 256)))
+
+    b = BytesIO()
+    out[0].save(b, format='gif', save_all=True, append_images=out[1:], loop=0, disposal=2, optimize=True, duration=40)
+    img2.close()
+    b.seek(0)
+    with open('temp.gif', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.gif')
+
+
+@app_routes.get('/confusedcat')
+async def confusedcat(request):
+    base = Image.open('assets/confusedcat/confusedcat.bmp')
+    font = ImageFont.truetype('assets/fonts/medium.woff', size=36)
+    text = request.headers.get('text')
+    canv = ImageDraw.Draw(base)
+    try:
+        ladies, cat = text.replace(' ,', ',', 1).split(',', 1)
+    except ValueError:
+        ladies = 'Dank Memer'
+        cat = 'People who forget to split text with a comma'
+    ladies = wrap(font, ladies, 510)
+    cat = wrap(font, cat, 510)
+    render_text_with_emoji(base, canv, (5, 5), ladies[:100], font=font, fill='Black')
+    render_text_with_emoji(base, canv, (516, 5), cat[:100], font=font, fill='Black')
+
+    base = base.convert('RGB')
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/corporate')
+async def corporate(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    base = Image.open('assets/corporate/corporate.jpg')
+    img1 = avatar[0].convert('RGBA').resize((512, 512), Image.LANCZOS)
+    try:
+        img2 = avatar[1].convert('RGBA').resize((512, 512), Image.LANCZOS)
+    except IndexError:
+        img2 = img1
+
+    img1 = skew(img1, [(208, 44), (718, 84), (548, 538), (20, 446)])
+
+    img2 = skew(img2, [(858, 112), (1600, 206), (1312, 666), (634, 546)], resolution=1400)
+
+    base.paste(img1, (0, 0), img1)
+    base.paste(img2, (0, 0), img2)
+
+    base = base.resize((base.width // 2, base.height // 2))
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+
