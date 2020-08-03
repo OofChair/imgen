@@ -1,11 +1,23 @@
 from aiohttp import web
 import aiohttp_jinja2
 import jinja2
+from aiohttp.web import middleware
 from endpoints.endpoint import app_routes
 from os import environ
 
 routes = web.RouteTableDef()
-app = web.Application()
+
+
+@middleware
+async def middleware(request, handler):
+    try:
+        resp = await handler(request)
+        return resp
+    except web.HTTPException as e:
+        if e.status == 404:
+            return aiohttp_jinja2.render_template('404.html', request, context=None)
+
+app = web.Application(middlewares=[middleware])
 
 
 @routes.get('/')
