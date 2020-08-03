@@ -185,6 +185,39 @@ async def bed(request):
     return web.FileResponse(path='./temp.png')
 
 
+@app_routes.get('/boo')
+async def boo(request):
+    args = await getarg(request)
+    base = Image.open('assets/boo/boo.bmp').convert('RGBA')
+    canv = ImageDraw.Draw(base)
+
+    text = args[2]
+
+    if len(text) != 2:
+        text = ["Separate the items with a", "comma followed by a space"]
+
+    first, second = text
+
+    first_font, first_text = auto_text_size(first,
+                                            ImageFont.truetype('assets/fonts/sans.ttf'), 144,
+                                            font_scalar=0.7)
+    second_font, second_text = auto_text_size(second,
+                                              ImageFont.truetype('assets/fonts/sans.ttf'),
+                                              144,
+                                              font_scalar=0.7)
+
+    canv.text((35, 54), first_text, font=first_font, fill='Black')
+    canv.text((267, 57), second_text, font=second_font, fill='Black')
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
 @app_routes.get('/bongocat')
 async def bongocat(request):
     args = await getarg(request)
@@ -292,3 +325,72 @@ async def byemom(request):
     with open('temp.png', 'wb') as e:
         e.write(b.getvalue())
     return web.FileResponse(path='./temp.png')
+
+
+@app_routes.get('/cancer')
+async def cancer(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0].resize((100, 100)).convert('RGBA')
+    base = Image.open('assets/cancer/cancer.bmp').convert('RGBA')
+
+    base.paste(avatar, (351, 200), avatar)
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes.get('/changemymind')
+async def changemymind(request):
+    base = Image.open('assets/changemymind/changemymind.bmp').convert('RGBA')
+    text_layer = Image.new('RGBA', base.size)
+    args = await getarg(request)
+    text = args[2][0]
+    font, text = auto_text_size(text, ImageFont.truetype('assets/fonts/sans.ttf'), 310)
+    canv = ImageDraw.Draw(text_layer)
+
+    render_text_with_emoji(text_layer, canv, (290, 300), text, font=font, fill='Black')
+
+    text_layer = text_layer.rotate(23, resample=Image.BICUBIC)
+
+    base.paste(text_layer, (0, 0), text_layer)
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes.get('/cheating')
+async def cheating(request):
+    base = Image.open('assets/cheating/cheating.bmp')
+    font = ImageFont.truetype('assets/fonts/medium.woff', size=26)
+    text = request.headers.get('text')
+    canv = ImageDraw.Draw(base)
+    try:
+        me, classmate = text.replace(' ,', ',', 1).split(',', 1)
+    except ValueError:
+        me = 'aight thx'
+        classmate = 'yo dude, you need to split the text with a comma'
+    me = wrap(font, me, 150)
+    classmate = wrap(font, classmate, 150)
+    render_text_with_emoji(base, canv, (15, 300), me[:50], font=font, fill='White')
+    render_text_with_emoji(base, canv, (155, 200), classmate[:50], font=font, fill='White')
+
+    base = base.convert('RGB')
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
