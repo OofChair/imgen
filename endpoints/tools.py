@@ -1,10 +1,13 @@
 from aiohttp import ClientSession
 from io import BytesIO
 from PIL import Image
+from aiohttp import web
 
 
 async def getarg(request):
     arg = [request.headers.get('avatars'), request.headers.get('usernames'), request.headers.get('text')]
+    if all(a is None for a in arg):
+        raise web.HTTPInternalServerError()
     return [i.split(',') if i else i for i in arg]
 
 

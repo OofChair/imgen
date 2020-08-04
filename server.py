@@ -12,10 +12,13 @@ routes = web.RouteTableDef()
 async def middleware(request, handler):
     try:
         resp = await handler(request)
+        print(resp.headers)
         return resp
     except web.HTTPException as e:
         if e.status == 404:
             return aiohttp_jinja2.render_template('404.html', request, context=None)
+        if e.status == 500:
+            return aiohttp_jinja2.render_template('500.html', request, context=None)
 
 app = web.Application(middlewares=[middleware])
 
