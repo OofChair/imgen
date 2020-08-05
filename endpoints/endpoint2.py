@@ -1,9 +1,11 @@
 from PIL import Image, ImageFont, ImageDraw, ImageOps, ImageEnhance
 from io import BytesIO
+from os import listdir
 from aiohttp import web
 from utils.textutils import render_text_with_emoji, wrap
 from endpoints.tools import getavatar, getarg, add_noise
 from random import randint
+from math import ceil
 
 app_routes2 = web.RouteTableDef()
 
@@ -120,3 +122,188 @@ async def deepfry(request):
     with open('temp.png', 'wb') as e:
         e.write(b.getvalue())
     return web.FileResponse(path='./temp.png')
+
+
+@app_routes2.get('/delete')
+async def delete(request):
+    base = Image.open('assets/delete/delete.bmp').convert('RGBA')
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0].resize((195, 195)).convert('RGBA')
+
+    base.paste(avatar, (120, 135), avatar)
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes2.get('/disability')
+async def disability(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0].resize((175, 175)).convert('RGBA')
+    base = Image.open('assets/disability/disability.bmp').convert('RGBA')
+
+    base.paste(avatar, (450, 325), avatar)
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes2.get('/doglemon')
+async def doglemon(request):
+    base = Image.open('assets/doglemon/doglemon.bmp')
+    font = ImageFont.truetype('assets/fonts/medium.woff', size=30)
+    canv = ImageDraw.Draw(base)
+    text = request.headers.get('text')
+    try:
+        lemon, dog = text.replace(' ,', ',', 1).split(',', 1)
+    except ValueError:
+        lemon = 'Text that is not seperated by comma'
+        dog = 'Dank Memer'
+    lemon = wrap(font, lemon, 450)
+    dog = wrap(font, dog, 450)
+    render_text_with_emoji(base, canv, (850, 100), lemon[:180], font=font, fill='Black')
+    render_text_with_emoji(base, canv, (500, 100), dog[:200], font=font, fill='White')
+
+    base = base.convert('RGB')
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes2.get('/door')
+async def door(request):
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0].resize((479, 479)).convert('RGBA')
+    base = Image.open('assets/door/door.bmp').convert('RGBA')
+    final_image = Image.new('RGBA', base.size)
+
+    final_image.paste(avatar, (250, 0), avatar)
+    final_image.paste(base, (0, 0), base)
+    final_image = final_image.convert('RGBA')
+
+    b = BytesIO()
+    final_image.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes2.get('/egg')
+async def egg(request):
+    base = Image.open('assets/egg/egg.bmp').resize((350, 350)).convert('RGBA')
+    args = await getarg(request)
+    avatar = await getavatar(array=args[0])
+    avatar = avatar[0].resize((50, 50)).convert('RGBA')
+
+    base.paste(avatar, (143, 188), avatar)
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes2.get('/excuseme')
+async def excuseme(request):
+    base = Image.open('assets/excuseme/excuseme.bmp')
+
+    font = ImageFont.truetype('assets/fonts/sans.ttf', size=40)
+    canv = ImageDraw.Draw(base)
+    text = request.headers.get('text')
+    text = wrap(font, text, 787)
+    render_text_with_emoji(base, canv, (20, 15), text, font=font, fill='Black')
+
+    base = base.convert('RGB')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
+
+
+@app_routes2.get('/expanddong')
+async def expanddong(request):
+    text = request.headers.get('text')
+    text = text[:500]
+    lines = ceil((len(text) * 128) / 1920) + 1
+    base = Image.new('RGBA', (1920, lines * 128), (255, 255, 255, 0))
+    line = 0
+    pos = 0
+    chars = dict()
+    for i in listdir('assets/expanddong'):
+        if i.endswith('.bmp'):
+            chars[i[0]] = Image.open(f'assets/expanddong/{i}')
+    for word in text.split(' '):
+        if 15 - pos <= len(word):
+            pos = 0
+            line += 1
+        for char in word:
+            char = char.lower()
+            if chars.get(char):
+                base.paste(chars[char], (pos * 128, line * 128))
+            pos += 1
+        pos += 1
+        if pos >= 15:
+            pos = 0
+            line += 1
+
+    base = base.convert('RGBA')
+
+    b = BytesIO()
+    base.save(b, format='png')
+    b.seek(0)
+    with open('temp.png', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.png')
+
+
+@app_routes2.get('/expandingwwe')
+async def expandingwwe(request):
+    base = Image.open('assets/expandingwwe/expandingwwe.jpg')
+    font = ImageFont.truetype('assets/fonts/verdana.ttf', size=30)
+
+    text = request.headers.get('text')
+    text = text.replace(', ', ',')
+
+    if len(text.split(',')) < 5:
+        a, b, c, d, e = 'you need, five items, for this, command, (split by commas)'.split(',')
+    else:
+        a, b, c, d, e = text.split(',', 4)
+
+    a, b, c, d, e = [wrap(font, i, 225).strip() for i in [a, b, c, d, e]]
+
+    canvas = ImageDraw.Draw(base)
+    canvas.text((5, 5), a, font=font, fill='Black')
+    canvas.text((5, 205), b, font=font, fill='Black')
+    canvas.text((5, 410), c, font=font, fill='Black')
+    canvas.text((5, 620), d, font=font, fill='Black')
+    canvas.text((5, 825), e, font=font, fill='Black')
+
+    b = BytesIO()
+    base.save(b, format='jpeg')
+    b.seek(0)
+    with open('temp.jpeg', 'wb') as e:
+        e.write(b.getvalue())
+    return web.FileResponse(path='./temp.jpeg')
