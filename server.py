@@ -3,6 +3,7 @@ import aiohttp_jinja2
 import jinja2
 from aiohttp.web import middleware
 from endpoints.endpoint import app_routes
+from endpoints.endpoint2 import app_routes2
 from os import environ
 
 routes = web.RouteTableDef()
@@ -12,7 +13,6 @@ routes = web.RouteTableDef()
 async def middleware(request, handler):
     try:
         resp = await handler(request)
-        print(resp.headers)
         return resp
     except web.HTTPException as e:
         if e.status == 404:
@@ -35,6 +35,7 @@ async def docs(request):
 if __name__ == '__main__':
     app.add_routes(routes)
     app.add_routes(app_routes)
+    app.add_routes(app_routes2)
     app.router.add_static('/assets/',
                           path='./views/assets',
                           name='assets')
