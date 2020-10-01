@@ -6,10 +6,23 @@ from random import randint
 
 
 async def getarg(request):
-    arg = [request.headers.get('avatars'), request.headers.get('usernames'), request.headers.get('text')]
+    res = [[], [], []]
+    arg = [
+        request.headers.get("avatars"),
+        request.headers.get("usernames"),
+        request.headers.get("text"),
+        request.query.get("avatars"),
+        request.query.get("usernames"),
+        request.query.get("text"),
+    ]
     if all(a is None for a in arg):
         raise web.HTTPInternalServerError()
-    return [i.split(',') if i else i for i in arg]
+    for i, j in enumerate(arg):
+        t = j
+        if j:
+            t = j.split(",")
+        res[i % 3] = t
+    return res
 
 
 async def get(session: object, url: object) -> object:
