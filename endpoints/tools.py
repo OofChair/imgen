@@ -18,11 +18,10 @@ async def getarg(request):
     if all(a is None for a in arg):
         raise web.HTTPInternalServerError()
     for i, j in enumerate(arg):
-        t = j
         if j:
             t = j.split(",")
-        res[i % 3] = t
-    return res
+            res[i % 3] = t
+    return [None if i == [] else i for i in res]
 
 
 async def get(session: object, url: object) -> object:
