@@ -1,5 +1,6 @@
-from aiohttp import ClientSession
 from io import BytesIO
+from tempfile import NamedTemporaryFile
+from aiohttp import ClientSession
 from PIL import Image
 from aiohttp import web
 from random import randint
@@ -24,6 +25,12 @@ async def getarg(request):
     return [None if i == [] else i for i in res]
 
 
+def gen_file_response(doc, kwargs):
+    with NamedTemporaryFile(delete=False) as f:
+        doc.save(f, **kwargs)
+        return web.FileResponse(path=f.name)
+
+
 async def get(session: object, url: object) -> object:
     async with session.get(url) as response:
         return await response.read()
@@ -37,8 +44,7 @@ async def getavatar(array: list) -> list:
         file = BytesIO(url)
         img = Image.open(file)
         result.append(img)
-    return \
-        result
+    return result
 
 
 def modify_all_pixels(im, noise_gen):
@@ -52,6 +58,11 @@ def modify_all_pixels(im, noise_gen):
 def add_noise(image, strength=100):
     def pixel_noise(x, y, r, g, b):
         noise = int(randint(0, strength) - strength / 2)
-        return max(0, min(r + noise, 255)), max(0, min(g + noise, 255)), max(0, min(b + noise, 255))
+        return (
+            max(0, min(r + noise, 255)),
+            max(0, min(g + noise, 255)),
+            max(0, min(b + noise, 255)),
+        )
+
     modify_all_pixels(image, pixel_noise)
     return image
